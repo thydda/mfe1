@@ -1,59 +1,63 @@
-# Mfe1
+# Movies microfrontend (mfe1)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.8.
+Angular 22 remote using Native Federation. Owns the movies routes, UI and in-memory MoviesService. It consumes the public @thydda/web-components API; no backend microservice is implemented.
 
-## Development server
+## Setup and development
 
-To start a local development server, run:
+Requires a supported Node.js release compatible with Angular 22 and npm with the committed lockfile. Build the local library before installing and starting this application:
 
-```bash
-ng serve
+```sh
+cd ../web-components
+npm ci
+npm run build
+cd ../mfe1
+npm ci
+npm start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+The remote runs independently at http://localhost:4201. Start shell separately on port 4200 to verify hosted navigation. The local file dependency consumes the library's built dist output; rebuild it after library changes.
 
-## Code scaffolding
+## Architecture and contracts
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- federation.config.mjs exposes the Angular routes and shares framework dependencies. @thydda/web-components is skipped from federation sharing and bundled by the remote.
+- src/app/app.routes.ts defines /movies with children "" (list/search) and "edit" (currently a heading).
+- MoviesList registers movie-search, scopes CUSTOM_ELEMENTS_SCHEMA and binds movies, placeholder and label as properties.
+- [Movie search API](../web-components/src/components/movie-search/README.md) documents properties and typed events. Use package exports rather than library internals.
+- [Movies feature](src/app/features/movies/README.md) documents mock CRUD. A separate signal is a snapshot of GET results and needs deliberate synchronization after mutations.
+- [Posters](public/posters/README.md) documents image provenance. Asset URLs must work both independently and when hosted.
+- src/styles.css imports Bootstrap and shared application styles once. The Web Component owns its shadow styles.
 
-```bash
-ng generate component component-name
+## Validation and local merges
+
+```sh
+npm run lint
+npm run format:check
+npm run test:unit
+npm run check
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+`check` runs lint, format checking, unit tests without watch, tests of the merge script in temporary repositories, and a production build; the library also checks TypeScript and requires a test file per component. ESLint uses type-aware TypeScript rules; Angular repositories also lint inline/external templates and template accessibility. Formatting is checked separately with Prettier. Use `npm run format` to apply formatting deliberately.
 
-```bash
-ng generate --help
+Complete the applicable review checklist in [best-practices.md](best-practices.md) before merging. Automated checks do not certify architecture, usability or accessibility. Browser integration and keyboard/zoom/screen-reader checks are manual today; there is no automated e2e command.
+
+From a clean `main` branch, after reviewing the feature:
+
+```sh
+npm run merge:main -- feature/my-change
 ```
 
-## Building
+This only accepts a local branch, prepares a merge with `--no-ff --no-commit`, validates the combined result, and commits locally only if checks pass. It does not push. If checks fail or conflicts occur, the merge stays uncommitted. Resolve and stage intended changes, then run:
 
-To build the project run:
-
-```bash
-ng build
+```sh
+npm run merge:main -- --continue
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Or abort with `git merge --abort`. Failed commit hooks can also be corrected before continuing. Checks are repeated on every continuation; unstaged/untracked changes prevent completion. There is no CI or server-side merge enforcement. Other Git commands and GitHub can bypass this local flow; a pre-merge hook alone does not cover every merge mode.
 
-## Running unit tests
+When a library contract changes, validate web-components and its mfe1 consumer. When federation or routes change, verify navigation through shell in a browser. Do not merge other repositories automatically as part of a check.
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Agent guidance
 
-```bash
-ng test
-```
+Read [AGENTS.md](AGENTS.md), [best-practices.md](best-practices.md) and [angular-frontend](.agents/skills/angular-frontend/SKILL.md). Each repository keeps its own instructions so it can be used independently.
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Tooling references: [angular-eslint](https://github.com/angular-eslint/angular-eslint), [type-aware linting](https://typescript-eslint.io/getting-started/typed-linting/) and [Git hooks](https://git-scm.com/docs/githooks).
