@@ -5,6 +5,8 @@ import type { Movie } from '@thydda/web-components';
 import { MoviesList } from './movies-list';
 import { MoviesService } from '../movies.service';
 import { MOVIES_MOCKED } from '../movies-mocked';
+import { AUTH_SERVICE } from '@thydda/auth-contracts';
+import { provideAuth } from '../../../auth/auth.provider';
 
 describe('MoviesList service integration', () => {
   let response: Subject<Movie[]>;
@@ -15,8 +17,25 @@ describe('MoviesList service integration', () => {
     getMovies = vi.fn(() => response.asObservable());
     TestBed.configureTestingModule({
       imports: [MoviesList],
-      providers: [{ provide: MoviesService, useValue: { getMovies } }],
+      providers: [{ provide: MoviesService, useValue: { getMovies } }, provideAuth()],
     });
+  });
+
+  it('observes login, user changes and logout from the injected session', async () => {
+    const fixture = TestBed.createComponent(MoviesList);
+    await fixture.whenStable();
+    const auth = TestBed.inject(AUTH_SERVICE);
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.querySelector('.session-status')?.textContent).toContain('signed out');
+    auth.login('Ana');
+    await fixture.whenStable();
+    expect(page.querySelector('.session-status')?.textContent).toContain('Ana');
+    auth.login('Luis');
+    await fixture.whenStable();
+    expect(page.querySelector('.session-status')?.textContent).toContain('Luis');
+    auth.logout();
+    await fixture.whenStable();
+    expect(page.querySelector('.session-status')?.textContent).toContain('signed out');
   });
 
   it('loads movies once and passes the response into the Web Component', async () => {

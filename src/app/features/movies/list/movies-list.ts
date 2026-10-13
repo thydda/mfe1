@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { defineMovieSearch, type Movie } from '@thydda/web-components';
 import { MoviesService } from '../movies.service';
+import { AUTH_SERVICE, type AuthService } from '@thydda/auth-contracts';
 defineMovieSearch();
 
 @Component({
@@ -19,6 +20,13 @@ defineMovieSearch();
       <p class="app-eyebrow">The collection</p>
       <h1>{{ title() }}</h1>
       <p class="app-description">Browse the posters or search by title, director and story.</p>
+      <p class="session-status" role="status">
+        @if (auth.user(); as user) {
+          Movies session: signed in as {{ user.name }}.
+        } @else {
+          Movies session: signed out.
+        }
+      </p>
     </header>
     @if (loadError()) {
       <p class="alert alert-danger" role="alert">{{ loadError() }}</p>
@@ -37,6 +45,7 @@ defineMovieSearch();
   `,
 })
 export class MoviesList implements OnInit {
+  protected readonly auth: AuthService = inject<AuthService>(AUTH_SERVICE);
   private readonly moviesService = inject(MoviesService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly title = signal('Movies');

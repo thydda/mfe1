@@ -18,7 +18,8 @@ export default withNativeFederation({
   })
     // includeSecondaries is an opt-out of ignoreUnusedDeps, so all of
     // @angular/core is shared to prevent mismatches.
-    .patch(['@angular/core'], { includeSecondaries: { keepAll: true } }),
+    .patch(['@angular/core'], { includeSecondaries: { keepAll: true } })
+    .patch(['@thydda/auth-contracts'], { requiredVersion: '0.1.0' }),
 
   skip: [
     // Used only by this remote: bundle locally rather than sharing a file: dependency.
