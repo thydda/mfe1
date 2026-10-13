@@ -27,6 +27,34 @@ The remote runs independently at http://localhost:4201. Start shell separately o
 - [Posters](public/posters/README.md) documents image provenance. Asset URLs must work both independently and when hosted.
 - src/styles.css imports Bootstrap and shared application styles once. The Web Component owns its shadow styles.
 
+## Authentication integration
+
+Before installing the local authentication package, run `npm ci` and
+`npm run check` from `auth-contracts/` to generate its runtime and declarations.
+
+Movies injects `AUTH_SERVICE` from the sibling `@thydda/auth-contracts` package
+and renders its read-only user signal. The hosted routes use the shell's provider;
+never provide the token in exposed routes or components, which would shadow the
+host session. `app.config.ts` supplies a separate development provider only when
+mfe1 bootstraps independently. The mock session is not persisted or used to
+authorize movie operations.
+
+Keep `auth-contracts` next to this repository before installing dependencies.
+The project uses `install-links=true` to resolve its Angular peer correctly.
+After modifying the contract, run its `npm run check`, reinstall it in both applications and restart their
+development servers. Both federation configurations share version `0.1.0` as a
+singleton so the token has the same identity.
+
+Home, Movies and movie child routes are guarded. When signed out they redirect
+to `/login`, preserving the requested URL for navigation after signing in.
+Standalone login is registered only in `app.config.ts`, not the exposed routes;
+hosted navigation uses the shell login. Signing out removes the protected screen
+and redirects to login.
+
+Verify at port 4200: visit `/movies` while signed out, sign in, then sign out from
+the shell header. Movies must disappear and login must be shown. Repeat on port
+4201 to verify the standalone flow. Also check `/dashboard` and `/movies/edit`.
+
 ## Validation and local merges
 
 ```sh

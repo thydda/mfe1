@@ -24,6 +24,7 @@
     "@angular/forms": "^22.1.0",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
+    "@thydda/auth-contracts": "0.1.0",
     "@thydda/web-components": "0.2.0",
     "bootstrap": "^5.3.8",
     "es-module-shims": "^2.8.0",
