@@ -1,3 +1,5 @@
+import { provideState, provideStore, Store } from '@ngrx/store';
+import { cartActions, cartFeatureKey, cartReducer, cartSelectors } from '@thydda/movies-cart';
 import { TestBed } from '@angular/core/testing';
 import type { MovieSearch } from '@thydda/web-components';
 import { Subject } from 'rxjs';
@@ -17,7 +19,12 @@ describe('MoviesList service integration', () => {
     getMovies = vi.fn(() => response.asObservable());
     TestBed.configureTestingModule({
       imports: [MoviesList],
-      providers: [{ provide: MoviesService, useValue: { getMovies } }, provideAuth()],
+      providers: [
+        { provide: MoviesService, useValue: { getMovies } },
+        provideStore(),
+        provideState({ name: cartFeatureKey, reducer: cartReducer }),
+        provideAuth(),
+      ],
     });
   });
 
@@ -59,6 +66,64 @@ describe('MoviesList service integration', () => {
     expect(getMovies).toHaveBeenCalledOnce();
     expect(element.movies).toEqual(MOVIES_MOCKED);
     expect(element.shadowRoot?.querySelectorAll('article')).toHaveLength(MOVIES_MOCKED.length);
+  });
+
+  it.each([true, false])('handles movie-search-select with selected=%s', async (selected) => {
+    const store = TestBed.inject(Store);
+    if (!selected) {
+      store.dispatch(cartActions.itemAdded({ item: MOVIES_MOCKED[0] }));
+    }
+    const dispatch = vi.spyOn(store, 'dispatch');
+    const fixture = TestBed.createComponent(MoviesList);
+    fixture.detectChanges();
+    response.next([MOVIES_MOCKED[0]]);
+    fixture.detectChanges();
+    const element = (fixture.nativeElement as HTMLElement).querySelector<MovieSearch>(
+      'movie-search',
+    )!;
+    expect(element.selectedMovieIds).toEqual(selected ? [] : [MOVIES_MOCKED[0].id]);
+    await element.updateComplete;
+    const button = element.shadowRoot?.querySelector('button');
+    expect(button).not.toBeNull();
+    button?.click();
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(dispatch.mock.calls[0][0]).toMatchObject(
+      selected
+        ? cartActions.itemAdded({ item: MOVIES_MOCKED[0] })
+        : cartActions.itemRemoved({ itemId: MOVIES_MOCKED[0].id }),
+    );
+    await fixture.whenStable();
+    await element.updateComplete;
+    expect(element.selectedMovieIds).toEqual(selected ? [MOVIES_MOCKED[0].id] : []);
+    expect(button?.getAttribute('aria-pressed')).toBe(String(selected));
+    expect(store.selectSignal(cartSelectors.selectItems)()).toEqual(
+      selected ? [MOVIES_MOCKED[0]] : [],
+    );
+    expect(MOVIES_MOCKED[0]).not.toHaveProperty('selected');
+  });
+
+  it('reflects external cart changes without altering the movie collection', async () => {
+    const fixture = TestBed.createComponent(MoviesList);
+    fixture.detectChanges();
+    response.next([...MOVIES_MOCKED]);
+    fixture.detectChanges();
+    const element = (fixture.nativeElement as HTMLElement).querySelector<MovieSearch>(
+      'movie-search',
+    )!;
+    await element.updateComplete;
+    const store = TestBed.inject(Store);
+    store.dispatch(cartActions.itemAdded({ item: MOVIES_MOCKED[1] }));
+    await fixture.whenStable();
+    await element.updateComplete;
+    expect(element.selectedMovieIds).toEqual([MOVIES_MOCKED[1].id]);
+    expect(element.shadowRoot?.querySelectorAll('button')[1].getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    store.dispatch(cartActions.itemRemoved({ itemId: MOVIES_MOCKED[1].id }));
+    await fixture.whenStable();
+    await element.updateComplete;
+    expect(element.selectedMovieIds).toEqual([]);
+    expect(element.movies).toEqual(MOVIES_MOCKED);
   });
 
   it('shows an accessible error if loading fails', () => {

@@ -2,6 +2,10 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { provideAuth } from './auth/auth.provider';
+import { provideState, provideStore } from '@ngrx/store';
+import { isDevMode } from '@angular/core';
+import { provideStoreDevtools } from '@ngrx/store-devtools';
+import { cartFeatureKey, cartReducer } from '@thydda/movies-cart';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,5 +18,8 @@ export const appConfig: ApplicationConfig = {
       ...routes,
     ]),
     provideAuth(),
+    provideStore(),
+    ...(isDevMode() ? [provideStoreDevtools({ maxAge: 25 })] : []),
+    provideState({ name: cartFeatureKey, reducer: cartReducer }),
   ],
 };

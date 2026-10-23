@@ -1,3 +1,5 @@
+import { cartFeatureKey, cartReducer } from '@thydda/movies-cart';
+import { provideState, provideStore } from '@ngrx/store';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -9,7 +11,12 @@ import { Login } from '../../auth/login';
 describe('Movies routes', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter([{ path: 'login', component: Login }, ...routes]), provideAuth()],
+      providers: [
+        provideStore(),
+        provideState({ name: cartFeatureKey, reducer: cartReducer }),
+        provideRouter([{ path: 'login', component: Login }, ...routes]),
+        provideAuth(),
+      ],
     });
     TestBed.inject(AUTH_SERVICE).login('Ana');
   });
