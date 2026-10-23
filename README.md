@@ -4,24 +4,28 @@ Angular 22 remote using Native Federation. Owns the movies routes, UI and in-mem
 
 ## Setup and development
 
-Requires a supported Node.js release compatible with Angular 22 and npm with the committed lockfile. Build the local library before installing and starting this application:
+Requires a supported Node.js release compatible with Angular 22 and npm with the
+committed lockfile. Packages under `@thydda` are installed from GitHub Packages;
+configure `@thydda:registry=https://npm.pkg.github.com` in `.npmrc` and authenticate
+with package read access before installing:
 
 ```sh
-cd ../web-components
-npm ci
-npm run build
-cd ../mfe1
+npm login --scope=@thydda --registry=https://npm.pkg.github.com --auth-type=legacy
 npm ci
 npm start
 ```
 
-The remote runs independently at http://localhost:4201. Start shell separately on port 4200 to verify hosted navigation. The local file dependency consumes the library's built dist output; rebuild it after library changes.
+The remote runs independently at http://localhost:4201. Start shell separately on
+port 4200 to verify hosted navigation. The application consumes published
+`@thydda/web-components@0.2.5` and `@thydda/movies-cart@0.1.1`; editing sibling
+library sources does not update installed packages. Publish and install a new
+release to consume library changes.
 
 ## Architecture and contracts
 
 - federation.config.mjs exposes the Angular routes and shares framework dependencies. @thydda/web-components is skipped from federation sharing and bundled by the remote.
-- src/app/app.routes.ts defines /movies with children "" (list/search) and "edit" (currently a heading).
-- MoviesList registers movie-search, scopes CUSTOM_ELEMENTS_SCHEMA and binds movies, placeholder and label as properties.
+- src/app/app.routes.ts guards /movies and lazy-loads features/movies/movies.routes.ts, which defines the list and edit screens.
+- MoviesList registers movie-search, scopes CUSTOM_ELEMENTS_SCHEMA and binds movies, placeholder, label and selectedMovieIds as properties.
 - [Movie search API](../web-components/src/components/movie-search/README.md) documents properties and typed events. Use package exports rather than library internals.
 - [Movies feature](src/app/features/movies/README.md) documents mock CRUD. A separate signal is a snapshot of GET results and needs deliberate synchronization after mutations.
 - [Posters](public/posters/README.md) documents image provenance. Asset URLs must work both independently and when hosted.
@@ -29,21 +33,16 @@ The remote runs independently at http://localhost:4201. Start shell separately o
 
 ## Authentication integration
 
-Before installing the local authentication package, run `npm ci` and
-`npm run check` from `auth-contracts/` to generate its runtime and declarations.
-
-Movies injects `AUTH_SERVICE` from the sibling `@thydda/auth-contracts` package
+Movies injects `AUTH_SERVICE` from the published `@thydda/auth-contracts` package
 and renders its read-only user signal. The hosted routes use the shell's provider;
 never provide the token in exposed routes or components, which would shadow the
 host session. `app.config.ts` supplies a separate development provider only when
 mfe1 bootstraps independently. The mock session is not persisted or used to
 authorize movie operations.
 
-Keep `auth-contracts` next to this repository before installing dependencies.
-The project uses `install-links=true` to resolve its Angular peer correctly.
-After modifying the contract, run its `npm run check`, reinstall it in both applications and restart their
-development servers. Both federation configurations share version `0.1.0` as a
-singleton so the token has the same identity.
+Both federation configurations share `@thydda/auth-contracts@0.1.0` as a singleton
+so the token has the same identity. After updating the package, restart both
+development servers to regenerate federation metadata.
 
 Home, Movies and movie child routes are guarded. When signed out they redirect
 to `/login`, preserving the requested URL for navigation after signing in.
@@ -54,6 +53,34 @@ and redirects to login.
 Verify at port 4200: visit `/movies` while signed out, sign in, then sign out from
 the shell header. Movies must disappear and login must be shown. Repeat on port
 4201 to verify the standalone flow. Also check `/dashboard` and `/movies/edit`.
+
+## Shared movie cart
+
+`MoviesList` consumes actions and selectors from `@thydda/movies-cart@0.1.1`.
+`Movie` is the shared `@thydda/movies-contracts@0.1.0` contract, also re-exported by
+the Web Component package. Selection is separate from movie data.
+
+The `(movie-search-select)` event carries `{ movie, selected }`. The handler
+dispatches `cartActions.itemAdded({ item: movie })` or
+`cartActions.itemRemoved({ itemId: movie.id })`. The
+`cartSelectors.selectItemIds` selector feeds `[selectedMovieIds]` through
+`Store.selectSignal`, so changes from other views also update the selection.
+
+For standalone execution, `app.config.ts` registers `provideStore()` and
+`provideState({ name: cartFeatureKey, reducer: cartReducer })`. Movie routes do
+not register the feature again. When hosted, the shell must register the same
+cart at startup: the remote's `app.config.ts` does not execute. Shell and remote
+must use compatible singleton Angular/NgRx packages and matching cart contracts.
+The header can consume `cartSelectors.selectCount` from that same Store.
+
+Redux DevTools instrumentation is enabled in development via
+`provideStoreDevtools`. Install the Redux DevTools browser extension to inspect
+actions and state. Cart data is in memory and resets on reload.
+
+Tests use the real shared reducer to cover selection/deselection, preselected
+movies and external cart updates. Run `npm run test:unit` or `npm run check`.
+Manually verify the hosted flow: sign in, select/unselect movies, check the header
+count and navigate away and back. This is not an automated cross-remote test.
 
 ## Validation and local merges
 
